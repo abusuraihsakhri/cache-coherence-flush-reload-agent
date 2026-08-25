@@ -1,0 +1,4 @@
+task_id,target_identifier,primary_metric,secondary_metric,is_critical_flag,status_descriptor
+TASK-001,TARGET-01,28.4,14.2,True,DISCORDANT
+TASK-002,TARGET-02,12.0,4.1,False,NOMINAL
+TASK-003,TARGET-03,35.0,19.5,True,ANOMALY
