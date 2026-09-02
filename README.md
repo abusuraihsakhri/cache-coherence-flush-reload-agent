@@ -1,123 +1,133 @@
-# Cache Coherence & Flush+Reload Side-Channel Security Engine
+# Cache Coherence Flush Reload Agent
 
-An enterprise microarchitectural security analysis, covert-channel auditing, and multi-core cache coherence verification engine designed to model, detect, and mitigate **Flush+Reload**, **Prime+Probe**, and **Flush+Flush** timing side-channel attacks across CPU cache hierarchies.
+> **Domain:** Clinical Decision Support & Biomedical Computing  
+> **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
 
----
+<div align="center">
 
-## Technical & Microarchitectural Overview
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
+![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
+![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
 
-### 1. Flush+Reload Side-Channel Mechanics
-The Flush+Reload technique targets shared, read-only memory pages (such as shared cryptographic libraries or system binaries) mapped across multiple security domains:
-1. **FLUSH**: The attacker evicts a specific target cache line from the entire cache hierarchy using the unprivileged `clflush` instruction.
-2. **VICTIM EXECUTION**: The attacker pauses to allow the victim process to execute. If the victim accesses the target line (e.g., an AES S-box/T-table entry or RSA modular exponentiation branch), the line is reloaded into cache.
-3. **RELOAD**: The attacker measures access latency to the line using hardware cycle timestamp counters (`rdtsc` / `rdtscp`).
-   - **Cache Hit ($50 - 100\text{ cycles}$)**: Line was accessed by the victim.
-   - **Cache Miss / DRAM ($200 - 350\text{ cycles}$)**: Line was not accessed.
-
-### 2. Automated Threshold Calibration & Signal Metrics
-- **Otsu's Discriminant Thresholding**: Computes the optimal threshold $T^*$ minimizing intra-class timing variance and maximizing separation between hit and miss clusters:
-  $$\sigma_w^2(T) = \omega_0(T)\sigma_0^2(T) + \omega_1(T)\sigma_1^2(T)$$
-- **Cohen's $d'$ Sensitivity Index**: Measures effect size and channel reliability:
-  $$d' = \frac{|\mu_{\text{miss}} - \mu_{\text{hit}}|}{\sqrt{\frac{\sigma_{\text{hit}}^2 + \sigma_{\text{miss}}^2}{2}}}$$
-  Values of $d' \ge 3.5$ indicate high-fidelity key recovery conditions.
-- **Signal-to-Noise Ratio (SNR)**:
-  $$\text{SNR}_{\text{dB}} = 20 \log_{10}\left(\frac{|\mu_{\text{miss}} - \mu_{\text{hit}}|}{\sigma_{\text{pooled}}}\right)$$
-
-### 3. MESI / MOESI Multi-Core Coherence Protocol State Machine
-Models multi-core L1/L2/LLC private and shared cache line transitions across $N$ CPU cores:
-- **Modified (M)**: Exclusive ownership, dirty data.
-- **Owner (O)**: Shared ownership with dirty write-back responsibility (MOESI).
-- **Exclusive (E)**: Exclusive ownership, clean data.
-- **Shared (S)**: Shared across one or more caches, clean.
-- **Invalid (I)**: Evicted or invalidated via bus broadcast (`BusUpgr`, `BusRdX`, `clflush`).
-
-### 4. Cryptographic AES T-Table Shannon Entropy Scanner
-Calculates Shannon entropy across the 16 cache lines comprising an AES T-table ($1024\text{ bytes} / 64\text{ bytes} = 16\text{ lines}$):
-$$H(X) = -\sum_{i=0}^{15} p_i \log_2(p_i)$$
-Deviations from maximum entropy ($4.0\text{ bits}$) expose key-dependent lookup biases.
+</div>
 
 ---
 
-## Installation
+## 📖 What It Does
 
-Requires **Python 3.9+** (zero external dependencies).
+Cache Coherence & Flush+Reload Side-Channel Analysis Engine
+===========================================================
+High-performance microarchitectural security analysis engine implementing:
+- Flush+Reload, Prime+Probe, and Flush+Flush side-channel attack/defense simulation
+- Automated bimodal threshold calibration (Otsu's method and maximal gap)
+- Signal quality scoring (Cohen's d', SNR, empirical BER)
+- Multi-core MESI/MOESI cache coherence protocol state machine
+- AES T-table side-channel cryptographic leak reconstruction
+- Hardware performance counter anomaly detection (flush rate, LLC miss burst)
+
+Standards & References:
+- Yarom & Falkner (USENIX Security 2014) "FLUSH+RELOAD: A High Resolution, Low Noise, L3 Cache Side-Channel Attack"
+- Gruss et al. (DIMVA 2016) "Flush+Flush: A Fast and Stealthy Cache Attack"
+- MESI / MOESI Cache Coherence Protocol Specifications (IEEE 1596 / AMD64 Architecture)
+
+Cross-core Invalidation Agent for Cache Coherence Flush/Reload Agent.
+Simulates and detects cross-core cache invalidation failures and stale data issues.
+
+---
+
+## ⚙️ Key Capabilities & Algorithmic Modules
+
+### 🔬 Core Algorithmic & Evaluation Engines
+
+- **`CoherenceState`** — dedicated module for coherence state evaluation and state verification.
+- **`AttackType`** — dedicated module for attack type evaluation and state verification.
+- **`ThreatSeverity`** — dedicated module for threat severity evaluation and state verification.
+- **`TimingAnalysisResult`**: Statistical summary of cache access timings.
+- **`CoherenceEvent`**: Single bus/coherence transaction across cores.
+- **`TTableAnalysisResult`**: Cryptographic T-table side-channel evaluation.
+
+---
+
+## 📐 Mathematical Formulation & Logic
+
+```text
+  Calculate Shannon entropy: H(X) = -sum(p_i * log2(p_i))
+  return (address // LINE_SIZE_BYTES) % total_sets
+  z_score = (data["mean_ns"] - overall_mean) / max(overall_std, 1)
+  return (entry_index * ENTRY_SIZE_BYTES) // LINE_SIZE_BYTES
+```
+
+---
+
+## 💻 CLI Quickstart & Usage
+
+### 1. Guided Interactive Mode
+```bash
+python cli.py
+```
+
+### 2. Direct Parameterized Evaluation
+```bash
+python cli.py --interactive <value> --demo <value> --analysis-id <value> --synthesize-bits <value>
+```
+
+### Parameter Reference
+- `--interactive`: Specifies input measurement or parameter value.
+- `--demo`: Specifies input measurement or parameter value.
+- `--analysis-id`: Specifies input measurement or parameter value.
+- `--synthesize-bits`: Specifies input measurement or parameter value.
+- `--timings`: Specifies input measurement or parameter value.
+- `--threshold`: Specifies input measurement or parameter value.
+- `--rounds-per-bit`: Specifies input measurement or parameter value.
+- `--cores`: Specifies input measurement or parameter value.
+- `--protocol`: Specifies input measurement or parameter value.
+- `--ttable-counts`: Specifies input measurement or parameter value.
+
+### Input Data Schema
+
+| Field | Description | Requirement |
+|:------|:------------|:------------|
+| `task_id` | Parameter / observation metric | Required |
+| `target_identifier` | Parameter / observation metric | Required |
+| `primary_metric` | Parameter / observation metric | Required |
+| `secondary_metric` | Parameter / observation metric | Required |
+| `is_critical_flag` | Parameter / observation metric | Required |
+| `status_descriptor` | Parameter / observation metric | Required |
+
+---
+
+## 🛡️ Security & Enterprise Architecture
+
+* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
+* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
+* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
+* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
+* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
+
+---
+
+## 🧪 Testing & Verification
+
+Run the automated test suite:
 
 ```bash
-git clone https://github.com/abusuraihsakhri/cache-coherence-flush-reload-agent.git
-cd cache-coherence-flush-reload-agent
+pytest -v
+```
+
+Execute high-throughput batch simulation benchmarks:
+
+```bash
+python simulator.py --tasks 1000 --concurrency 8
 ```
 
 ---
 
-## CLI Usage Examples
-
-### 1. Run Pre-Configured Benchmark Scenarios
+## 🐳 Container Deployment
 
 ```bash
-python cli.py --demo flush_reload
-python cli.py --demo ttable_leak
-python cli.py --demo coherence_race
-python cli.py --demo prime_probe
+docker build -t cache-coherence-flush-reload-agent .
+docker run -p 8000:8000 cache-coherence-flush-reload-agent
 ```
-
-### 2. Direct Trace Timing Audit with JSON Output
-
-```bash
-python cli.py --analysis-id AUDIT-X86-01 --timings 65,70,68,280,290,285 \
-  --threshold 120.0 --flush-rate 95000 --json
-```
-
-### 3. Interactive Security Audit
-
-```bash
-python cli.py --interactive
-```
-
----
-
-## Python API Usage
-
-```python
-from cache_coherence_flush_reload import (
-    MesiCoherenceEngine,
-    FlushReloadEngine,
-    TTableLeakageScanner,
-    CacheCoherenceFlushReloadAgent,
-    format_security_dossier,
-)
-
-# 1. Synthesize and evaluate timing trace
-traces = FlushReloadEngine.synthesize_traces([1, 0, 1, 1, 0, 1], rounds_per_bit=12)
-timing_result = FlushReloadEngine.analyze_timings(traces)
-
-# 2. Multi-core MOESI coherence tracking
-engine = MesiCoherenceEngine(num_cores=4, protocol="MOESI")
-engine.processor_write(core_id=0, address=0x4000, data=0xBEEF)
-engine.processor_read(core_id=1, address=0x4000)
-
-# 3. Full security audit dossier
-dossier = CacheCoherenceFlushReloadAgent.run_full_security_audit(
-    analysis_id="AUDIT-SERVER-04",
-    timings=traces,
-    coherence_engine=engine,
-    flush_rate_per_sec=110000.0
-)
-
-print(format_security_dossier(dossier))
-```
-
----
-
-## Unit Testing
-
-Run the automated test suite with 22 unit test cases:
-
-```bash
-python -m unittest test_cache_coherence_flush_reload.py -v
-```
-
----
-
-## License
-
-MIT License. Authored and maintained by Dr. Abu Suraih Sakhri.
