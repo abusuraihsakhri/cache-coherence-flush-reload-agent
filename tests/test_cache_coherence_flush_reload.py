@@ -231,6 +231,29 @@ class TestCLIExecution(unittest.TestCase):
         ])
         self.assertEqual(ret, 0)
 
+    def test_cli_batch_mode(self):
+        import tempfile
+        import os
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".csv") as tf:
+            tf.write("address,reload_access_cycles,classification\n0x1000,45,HIT\n0x2000,280,MISS\n")
+            in_path = tf.name
+
+        out_path = in_path + ".out.csv"
+        try:
+            ret = cli.main(["batch", "-i", in_path, "-o", out_path])
+            self.assertEqual(ret, 0)
+            self.assertTrue(os.path.exists(out_path))
+            with open(out_path, "r") as f:
+                content = f.read()
+            self.assertIn("calibrated_threshold", content)
+            self.assertIn("0x1000", content)
+        finally:
+            if os.path.exists(in_path):
+                os.remove(in_path)
+            if os.path.exists(out_path):
+                os.remove(out_path)
+
 
 if __name__ == "__main__":
     unittest.main()
+

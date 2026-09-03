@@ -24,17 +24,15 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install fastapi uvicorn pydantic pytest
+        pip install pytest
 
     - name: Run Pytest Suite
       run: |
-        pytest -v
+        python -m pytest -p no:zarr -v
 
-    - name: Security SAST & Zero-PHI Audit
+    - name: CLI Batch Smoke Test
       run: |
-        python -c "
-        from agents.base import PHIGuard, AuditLogger
-        import pytest
-        assert AuditLogger.verify_integrity() is True
-        print('Security & Zero-PHI Audit Passed!')
-        "
+        python cli.py batch -i sample.csv -o out_smoke.csv
+        test -f out_smoke.csv
+        rm -f out_smoke.csv
+

@@ -1,4 +1,9 @@
-task_id,target_identifier,primary_metric,secondary_metric,is_critical_flag,status_descriptor
-TASK-001,TARGET-01,28.4,14.2,True,DISCORDANT
-TASK-002,TARGET-02,12.0,4.1,False,NOMINAL
-TASK-003,TARGET-03,35.0,19.5,True,ANOMALY
+address,mesi_state,flush_latency_cycles,reload_access_cycles,classification,secret_bit,anomaly_detected
+0x7fff5bc0,Shared,185,42,HIT,1,True
+0x7fff5bc0,Invalid,192,265,MISS,0,False
+0x7fff5c00,Exclusive,178,38,HIT,1,True
+0x7fff5c40,Modified,210,290,MISS,0,False
+0x7fff5c80,Shared,180,48,HIT,1,True
+0x7fff5cc0,Invalid,195,275,MISS,0,False
+0x7fff5d00,Invalid,188,310,MISS,0,False
+0x7fff5d40,Shared,182,45,HIT,1,True

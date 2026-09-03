@@ -1,133 +1,215 @@
-# Cache Coherence Flush Reload Agent
+# Cache Coherence & Flush+Reload Side-Channel Security Engine
 
-> **Domain:** Clinical Decision Support & Biomedical Computing  
-> **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
+> **Domain:** Hardware Security, Microarchitectural Side-Channels, & Cache Coherence Verification  
+> **Reference Standards & Literature:** Yarom & Falkner (*USENIX Security 2014*), Gruss et al. (*DIMVA 2016*), IEEE 1596 / AMD64 MESI/MOESI Protocol Specifications
 
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
+![Security](https://img.shields.io/badge/Security-Microarchitectural_Audit-crimson.svg)
+![Tests](https://img.shields.io/badge/Tests-Pytest%20Passing-brightgreen.svg)
 
 </div>
 
 ---
 
-## 📖 What It Does
+## 📖 Overview
 
-Cache Coherence & Flush+Reload Side-Channel Analysis Engine
-===========================================================
-High-performance microarchitectural security analysis engine implementing:
-- Flush+Reload, Prime+Probe, and Flush+Flush side-channel attack/defense simulation
-- Automated bimodal threshold calibration (Otsu's method and maximal gap)
-- Signal quality scoring (Cohen's d', SNR, empirical BER)
-- Multi-core MESI/MOESI cache coherence protocol state machine
-- AES T-table side-channel cryptographic leak reconstruction
-- Hardware performance counter anomaly detection (flush rate, LLC miss burst)
+The **Cache Coherence & Flush+Reload Side-Channel Security Engine** is an architectural and software security analysis suite designed to model, simulate, detect, and mitigate microarchitectural timing attacks. It evaluates:
 
-Standards & References:
-- Yarom & Falkner (USENIX Security 2014) "FLUSH+RELOAD: A High Resolution, Low Noise, L3 Cache Side-Channel Attack"
-- Gruss et al. (DIMVA 2016) "Flush+Flush: A Fast and Stealthy Cache Attack"
-- MESI / MOESI Cache Coherence Protocol Specifications (IEEE 1596 / AMD64 Architecture)
-
-Cross-core Invalidation Agent for Cache Coherence Flush/Reload Agent.
-Simulates and detects cross-core cache invalidation failures and stale data issues.
+* **Flush+Reload (Yarom & Falkner 2014):** Exploits page deduplication and shared read-only memory mappings via `clflush` and cycle timing measurement (`rdtsc`/`rdtscp`).
+* **Prime+Probe & Flush+Flush:** Cache set contention profiling without shared memory or cache-hit timing signatures.
+* **Multi-Core MESI / MOESI Protocol State Machines:** Cross-core cache coherence tracking, invalidation races, snooping bus transitions, and stale data reads.
+* **Cryptographic T-Table Leakage Analysis:** Shannon entropy and access frequency profiling targeting table-based implementations of cryptographic primitives (such as AES S-boxes).
+* **Hardware Performance Counter (HPC) Telemetry:** Real-time monitoring of high-frequency flush instruction rates and LLC miss spikes.
 
 ---
 
-## ⚙️ Key Capabilities & Algorithmic Modules
+## 📐 Mathematical Formulation & Microarchitectural Foundations
 
-### 🔬 Core Algorithmic & Evaluation Engines
+### 1. Flush+Reload Attack Cycle Discrimination
 
-- **`CoherenceState`** — dedicated module for coherence state evaluation and state verification.
-- **`AttackType`** — dedicated module for attack type evaluation and state verification.
-- **`ThreatSeverity`** — dedicated module for threat severity evaluation and state verification.
-- **`TimingAnalysisResult`**: Statistical summary of cache access timings.
-- **`CoherenceEvent`**: Single bus/coherence transaction across cores.
-- **`TTableAnalysisResult`**: Cryptographic T-table side-channel evaluation.
+In an inclusive Last-Level Cache (LLC) architecture, the attacker executes three distinct phases:
 
----
+1. **FLUSH:** Evicts target cache line $L$ across all cache levels using `clflush $L`.
+2. **WAIT:** Allows victim thread execution (e.g., cryptographic exponentiation or AES round substitution). If the victim accesses $L$, the processor loads it into L1/L2 and LLC.
+3. **RELOAD:** Measures the access latency $t$ using serialized time-stamp counters (`rdtscp` / `lfence; rdtsc`).
 
-## 📐 Mathematical Formulation & Logic
+$$\text{Reload State} = \begin{cases} \text{Cache Hit } (L1/L2/LLC), & t < \tau \\ \text{Cache Miss } (\text{DRAM Fetch}), & t \ge \tau \end{cases}$$
 
-```text
-  Calculate Shannon entropy: H(X) = -sum(p_i * log2(p_i))
-  return (address // LINE_SIZE_BYTES) % total_sets
-  z_score = (data["mean_ns"] - overall_mean) / max(overall_std, 1)
-  return (entry_index * ENTRY_SIZE_BYTES) // LINE_SIZE_BYTES
-```
+### 2. Discrimination Threshold Calibration ($\tau$)
+
+The decision threshold $\tau$ separates the bimodal distribution of cache hits from cache misses:
+
+$$\tau \approx \frac{\mu_{\text{hit}} + \mu_{\text{miss}}}{2}$$
+
+For non-symmetric or noisy distributions, the engine calibrates $\tau$ via **Otsu's Variance Minimization Method**, maximizing inter-class variance $\sigma_B^2(T)$:
+
+$$\sigma_B^2(T) = \omega_0(T) \omega_1(T) \left(\mu_0(T) - \mu_1(T)\right)^2$$
+
+where $\omega_0, \omega_1$ are cumulative probabilities of the hit and miss partitions separated by candidate threshold $T$.
+
+### 3. Signal Quality & Channel Capacity
+
+To quantify side-channel exfiltration reliability and bit error rates, the engine computes **Cohen's $d'$** effect size and Signal-to-Noise Ratio ($\text{SNR}_{\text{dB}}$):
+
+$$d' = \frac{|\mu_{\text{miss}} - \mu_{\text{hit}}|}{\sqrt{\frac{\sigma_{\text{hit}}^2 + \sigma_{\text{miss}}^2}{2}}}$$
+
+$$\text{SNR}_{\text{dB}} = 20 \log_{10}\left(\frac{|\mu_{\text{miss}} - \mu_{\text{hit}}|}{\sigma_{\text{pooled}}}\right)$$
+
+A channel with $d' \ge 3.5$ and $\text{SNR} > 15 \text{ dB}$ provides high-confidence secret bit exfiltration ($>99.9\%$ accuracy with minimal majority-voting rounds).
+
+### 4. MESI / MOESI Coherence Protocol Transitions
+
+Multi-core cache coherence coordinates cache line ownership across private L1/L2 and shared LLC caches:
+
+* **M (Modified):** Line is dirty and held exclusively by the local core; must be written back on eviction.
+* **O (Owner - MOESI):** Line is dirty, shared with other cores; the owner core services peer reads without DRAM write-back.
+* **E (Exclusive):** Line is clean and held exclusively by one core.
+* **S (Shared):** Line is clean and replicated in multiple private caches.
+* **I (Invalid):** Line is not present or has been invalidated by a peer core's `PrWr` (`BusRdX` / `BusUpgr`) or `clflush`.
+
+Cross-core invalidations trigger bus snooping transactions:
+$$\text{Core}_i \xrightarrow{\text{PrWr}(A)} \text{BusRdX}(A) \implies \forall j \neq i: \text{State}_j(A) \leftarrow \text{INVALID}$$
+
+### 5. Cryptographic T-Table Entropy & Key Leakage
+
+For table-based implementations where AES round keys are indexed as $T[p \oplus k]$:
+$$\text{Line Index} = \left\lfloor \frac{\text{Byte Offset}}{64} \right\rfloor$$
+
+Under a non-leaking, constant-time execution profile, the distribution across the 16 cache lines of a 1024-byte table is uniform ($H_{\max} = \log_2(16) = 4.0\text{ bits}$). Secret key byte recovery is detected when the Shannon entropy drops:
+
+$$H(X) = -\sum_{i=0}^{15} p_i \log_2(p_i) < 3.20\text{ bits}$$
+
+### 6. Constant-Time Software Mitigations
+
+* **Hardware Crypto Instructions:** Replace software lookup tables with constant-time AES-NI (`vaesenc`, `vaesenclast`) or bit-sliced vector implementations (`vpaes`).
+* **Cache Partitioning & CAT:** Utilize Intel Cache Allocation Technology (CAT) to partition ways between victim and attacker domains.
+* **Memory Isolation & Serialization:** Restrict unprivileged `clflush` instructions or use memory serialization fences (`lfence`, `mfence`).
 
 ---
 
 ## 💻 CLI Quickstart & Usage
 
-### 1. Guided Interactive Mode
+### 1. Batch Processing Mode (`sample.csv`)
+
+Process an input batch CSV of cache line access events and telemetry data:
+
 ```bash
-python cli.py
+python cli.py batch -i sample.csv -o results.csv
 ```
 
-### 2. Direct Parameterized Evaluation
+With manual threshold override:
+
 ```bash
-python cli.py --interactive <value> --demo <value> --analysis-id <value> --synthesize-bits <value>
+python cli.py batch -i sample.csv -o results.csv --threshold 100.0
 ```
 
-### Parameter Reference
-- `--interactive`: Specifies input measurement or parameter value.
-- `--demo`: Specifies input measurement or parameter value.
-- `--analysis-id`: Specifies input measurement or parameter value.
-- `--synthesize-bits`: Specifies input measurement or parameter value.
-- `--timings`: Specifies input measurement or parameter value.
-- `--threshold`: Specifies input measurement or parameter value.
-- `--rounds-per-bit`: Specifies input measurement or parameter value.
-- `--cores`: Specifies input measurement or parameter value.
-- `--protocol`: Specifies input measurement or parameter value.
-- `--ttable-counts`: Specifies input measurement or parameter value.
+### 2. Standalone & Synthetic Audit
 
-### Input Data Schema
+Run an audit with synthetic bitstreams or custom cycle timings:
 
-| Field | Description | Requirement |
-|:------|:------------|:------------|
-| `task_id` | Parameter / observation metric | Required |
-| `target_identifier` | Parameter / observation metric | Required |
-| `primary_metric` | Parameter / observation metric | Required |
-| `secondary_metric` | Parameter / observation metric | Required |
-| `is_critical_flag` | Parameter / observation metric | Required |
-| `status_descriptor` | Parameter / observation metric | Required |
+```bash
+# Synthetic bitstring analysis
+python cli.py --analysis-id AUDIT-001 --synthesize-bits 10110011 --rounds-per-bit 10 --json
+
+# Direct timing sequence evaluation
+python cli.py --analysis-id TIMING-TEST --timings 45.2,52.1,48.0,270.5,285.0,290.1 --threshold 120.0
+
+# AES T-table leakage assessment
+python cli.py --analysis-id AES-EVAL --ttable-counts 2,4,1,3,380,2,1,4,2,3,1,2,5,1,2,3
+```
+
+### 3. Built-in Benchmark Demos
+
+```bash
+python cli.py --demo flush_reload
+python cli.py --demo prime_probe
+python cli.py --demo ttable_leak
+python cli.py --demo coherence_race
+python cli.py --demo all
+```
+
+### 4. Interactive Guided Audit
+
+```bash
+python cli.py --interactive
+```
 
 ---
 
-## 🛡️ Security & Enterprise Architecture
+## 📊 CSV Input/Output Schema
 
-* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
-* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
-* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
-* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
-* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
+### Input Schema (`sample.csv`)
+
+| Column Name | Type | Description | Example |
+|:---|:---|:---|:---|
+| `address` | String (Hex) | Monitored cache line address | `0x7fff5bc0` |
+| `mesi_state` | String | Coherence state (`Modified`, `Exclusive`, `Shared`, `Invalid`) | `Shared` |
+| `flush_latency_cycles` | Float / Int | Duration of `clflush` operation in CPU cycles | `185` |
+| `reload_access_cycles` | Float / Int | Measured reload latency (L1 hit vs. DRAM miss) | `42` |
+| `classification` | String | Observed state classification (`HIT` / `MISS`) | `HIT` |
+| `secret_bit` | Integer | Inferred secret bit (`1` for reload hit, `0` for miss) | `1` |
+| `anomaly_detected` | Boolean | Microarchitectural anomaly indicator | `True` |
+
+### Batch Output Additions
+
+The `batch` command appends the following calibrated fields:
+* `calibrated_threshold`: Calculated Otsu or user-specified cycle discrimination threshold.
+* `evaluated_classification`: Evaluated `HIT` or `MISS` based on calibrated threshold.
+* `inferred_secret_bit`: Extracted binary value (`1` or `0`).
+* `side_channel_anomaly`: Combined anomaly detection flag.
+
+---
+
+## 🐍 Python Quickstart
+
+```python
+from cache_coherence_flush_reload import (
+    FlushReloadEngine,
+    MesiCoherenceEngine,
+    TTableLeakageScanner,
+    CacheCoherenceFlushReloadAgent,
+    format_security_dossier,
+)
+
+# 1. Simulate & evaluate Flush+Reload timing traces
+secret_bits = [1, 0, 1, 1, 0]
+timings = FlushReloadEngine.synthesize_traces(secret_bits, rounds_per_bit=10)
+timing_results = FlushReloadEngine.analyze_timings(timings)
+print(f"Optimal Threshold: {timing_results.optimal_threshold_cycles} cycles")
+print(f"Extracted Bitstring: {timing_results.extracted_bitstring} (d' = {timing_results.cohens_d_prime})")
+
+# 2. Simulate multi-core MESI cache coherence
+engine = MesiCoherenceEngine(num_cores=4, protocol="MOESI")
+engine.processor_read(core_id=0, address=0x1000)   # Core 0: Exclusive
+engine.processor_read(core_id=1, address=0x1000)   # Core 0, 1: Shared
+engine.processor_write(core_id=2, address=0x1000)  # Core 2: Modified, Core 0, 1: Invalidated
+
+# 3. Run full security audit
+dossier = CacheCoherenceFlushReloadAgent.run_full_security_audit(
+    analysis_id="QUICKSTART-AUDIT",
+    timings=timings,
+    coherence_engine=engine,
+    flush_rate_per_sec=95000.0,
+)
+print(format_security_dossier(dossier))
+```
 
 ---
 
 ## 🧪 Testing & Verification
 
-Run the automated test suite:
+Run the automated test suite with pytest:
 
 ```bash
-pytest -v
+python -m pytest -p no:zarr -v
 ```
 
-Execute high-throughput batch simulation benchmarks:
+Execute CLI batch smoke test:
 
 ```bash
-python simulator.py --tasks 1000 --concurrency 8
+python cli.py batch -i sample.csv -o out_smoke.csv
 ```
 
----
-
-## 🐳 Container Deployment
-
-```bash
-docker build -t cache-coherence-flush-reload-agent .
-docker run -p 8000:8000 cache-coherence-flush-reload-agent
-```

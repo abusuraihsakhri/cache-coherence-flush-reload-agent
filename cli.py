@@ -107,10 +107,107 @@ def interactive_mode() -> int:
         return 1
 
 
+import csv
+
+
+def process_batch_csv(input_path: str, output_path: Optional[str] = None, threshold: Optional[float] = None) -> int:
+    """
+    Processes a CSV of cache line access events and telemetry data,
+    evaluating hit/miss status, secret bit, and side-channel anomaly detection.
+    """
+    rows = []
+    with open(input_path, "r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames or []
+        for r in reader:
+            rows.append(r)
+
+    if not rows:
+        print(f"No records found in {input_path}")
+        return 0
+
+    # Auto-calibrate threshold if reload_access_cycles is present
+    reload_key = None
+    for k in ["reload_access_cycles", "reload_time", "reload_cycles", "latency", "primary_metric"]:
+        if k in fieldnames:
+            reload_key = k
+            break
+
+    timings = []
+    if reload_key:
+        for r in rows:
+            try:
+                timings.append(float(r[reload_key]))
+            except (ValueError, TypeError):
+                pass
+
+    calibrated_threshold = threshold
+    if calibrated_threshold is None:
+        if timings:
+            calibrated_threshold = FlushReloadEngine.compute_otsu_threshold(timings)
+        else:
+            calibrated_threshold = 120.0
+
+    out_fieldnames = list(fieldnames)
+    for extra_col in ["calibrated_threshold", "evaluated_classification", "inferred_secret_bit", "side_channel_anomaly"]:
+        if extra_col not in out_fieldnames:
+            out_fieldnames.append(extra_col)
+
+    processed_rows = []
+    for r in rows:
+        row_out = dict(r)
+        reload_val = None
+        if reload_key and r.get(reload_key) is not None:
+            try:
+                reload_val = float(r[reload_key])
+            except (ValueError, TypeError):
+                pass
+
+        if reload_val is not None:
+            is_hit = reload_val < calibrated_threshold
+            inferred_bit = 1 if is_hit else 0
+            classification = "HIT" if is_hit else "MISS"
+            anomaly = is_hit or (r.get("anomaly_detected", "").lower() in ("true", "1", "yes"))
+        else:
+            is_hit = False
+            inferred_bit = 0
+            classification = r.get("classification", "MISS")
+            anomaly = False
+
+        row_out["calibrated_threshold"] = f"{calibrated_threshold:.1f}"
+        row_out["evaluated_classification"] = classification
+        row_out["inferred_secret_bit"] = str(inferred_bit)
+        row_out["side_channel_anomaly"] = str(anomaly)
+        processed_rows.append(row_out)
+
+    if output_path:
+        with open(output_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=out_fieldnames)
+            writer.writeheader()
+            writer.writerows(processed_rows)
+        print(f"Batch processing complete. Wrote {len(processed_rows)} rows to {output_path}")
+    else:
+        writer = csv.DictWriter(sys.stdout, fieldnames=out_fieldnames)
+        writer.writeheader()
+        writer.writerows(processed_rows)
+
+    return 0
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Cache Coherence & Flush+Reload Side-Channel Security Engine"
     )
+    subparsers = parser.add_subparsers(dest="command", help="Command mode")
+
+    # Batch subparser
+    batch_parser = subparsers.add_parser("batch", help="Process a CSV batch file of cache access events")
+    batch_parser.add_argument("--input", "-i", required=True, help="Input CSV file path")
+    batch_parser.add_argument("--output", "-o", help="Output CSV file path")
+    batch_parser.add_argument("--threshold", "-t", type=float, help="Manual hit/miss cycle threshold")
+
+    # Audit / standalone arguments
+    parser.add_argument("--batch", "-b", help="Process a CSV batch file (flag mode)")
     parser.add_argument("--interactive", "-i", action="store_true", help="Launch interactive audit mode")
     parser.add_argument("--demo", choices=["flush_reload", "prime_probe", "ttable_leak", "coherence_race", "all"], help="Run benchmark demo scenario")
     parser.add_argument("--analysis-id", default="AUDIT-001", help="Audit run identifier")
@@ -127,6 +224,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--output", "-o", help="Write report to output file")
 
     args = parser.parse_args(argv)
+
+    if args.command == "batch":
+        return process_batch_csv(args.input, args.output, args.threshold)
+
+    if getattr(args, "batch", None):
+        return process_batch_csv(args.batch, args.output, args.threshold)
 
     if args.interactive:
         return interactive_mode()
@@ -180,3 +283,4 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
