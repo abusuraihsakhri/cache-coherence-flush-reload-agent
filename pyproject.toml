@@ -1,27 +1,50 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=75.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cache-coherence-flush-reload-engine"
-version = "2.0.0"
-description = "Cache-Timing: Prime+Probe & Flush+Reload Contention Engine"
+name = "cache-coherence-flush-reload-agent"
+version = "2.1.0"
+description = "Cache timing trace analysis and MESI/MOESI coherence simulation tools"
 readme = "README.md"
-authors = [{ name = "Dr. Abu Suraih Sakhri", email = "abusuraih@example.com" }]
+authors = [{ name = "NAME" }]
 license = { text = "MIT" }
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
-    "Topic :: Security/Cryptography",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Security",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = []
 
+[project.optional-dependencies]
+dev = [
+    "build>=1.2,<2",
+    "pytest>=8,<9",
+    "ruff>=0.8,<1",
+]
+
 [project.scripts]
-cache-coherence-flush-reload-engine = "cache_timing.cli:main"
+cache-coherence-analyze = "cli:main"
 
 [project.urls]
-Homepage = "https://github.com/abusuraihsakhri/cache-coherence-flush-reload-engine"
-Repository = "https://github.com/abusuraihsakhri/cache-coherence-flush-reload-engine.git"
+Homepage = "https://github.com/abusuraihsakhri/cache-coherence-flush-reload-agent"
+Repository = "https://github.com/abusuraihsakhri/cache-coherence-flush-reload-agent.git"
+
+[tool.setuptools]
+py-modules = [
+    "cache_coherence_flush_reload",
+    "cli",
+    "cross_core_invalidation",
+    "flush_reload_detector",
+    "prime_probe_detector",
+    "timing_side_channel",
+    "ttable_scanner",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
