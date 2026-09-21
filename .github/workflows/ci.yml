@@ -37,6 +37,12 @@ jobs:
           python -m compileall -q .
           ruff check .
 
+      - name: Validate static web app
+        run: |
+          node --check docs/app.js
+          test -s docs/index.html
+          test -s docs/styles.css
+
       - name: Build package
         run: python -m build
 
