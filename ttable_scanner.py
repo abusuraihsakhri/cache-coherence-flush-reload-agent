@@ -19,7 +19,7 @@ the leak with entropy analysis, and runs a full candidate-intersection attack.
 
 import math
 from collections import Counter
-from typing import Dict, List, Sequence
+from typing import List, Sequence
 
 
 ENTRIES_PER_TABLE = 256
@@ -29,7 +29,9 @@ LINES_PER_TABLE = ENTRIES_PER_TABLE * ENTRY_SIZE_BYTES // LINE_SIZE_BYTES   # 16
 
 
 def entry_to_line(entry_index: int) -> int:
-    """Cache line of T-table entry i within a single aligned table."""
+    """Cache line of a validated table entry within one aligned table."""
+    if not isinstance(entry_index, int) or not 0 <= entry_index < ENTRIES_PER_TABLE:
+        raise ValueError(f"entry_index must be between 0 and {ENTRIES_PER_TABLE - 1}")
     return (entry_index * ENTRY_SIZE_BYTES) // LINE_SIZE_BYTES
 
 
@@ -43,7 +45,7 @@ def scan_lookup_trace(trace: Sequence[int], table_base: int = 0) -> dict:
     """
     if not trace:
         raise ValueError("empty trace")
-    lines = [entry_to_line(i) for i in trace]
+    lines = [entry_to_line(int(i)) for i in trace]
     dist = Counter(lines)
     total = len(lines)
     entropy = -sum((c / total) * math.log2(c / total) for c in dist.values())
@@ -54,16 +56,17 @@ def scan_lookup_trace(trace: Sequence[int], table_base: int = 0) -> dict:
         "lines_available": LINES_PER_TABLE,
         "line_distribution": {str(k): v for k, v in sorted(dist.items())},
         "observed_line_entropy_bits": round(entropy, 3),
-        "leak_score_pct": round(100.0 * entropy / max_entropy, 1),
-        "secret_dependent_indexing": len(dist) > 1 or trace[0] != trace[-1],
+        "leak_score_pct": round(100.0 * (1.0 - entropy / max_entropy), 1),
+        "secret_dependent_indexing": entropy < (0.8 * max_entropy),
     }
 
 
 def first_round_key_candidates(observed_line: int, plaintext_byte: int) -> set:
-    """Key-byte candidates consistent with one observed cache-line access.
-
-    y in [16*line, 16*line+15]; k = y XOR x.
-    """
+    """Candidate byte values in the toy first-round cache-line model."""
+    if not isinstance(observed_line, int) or not 0 <= observed_line < LINES_PER_TABLE:
+        raise ValueError(f"observed_line must be between 0 and {LINES_PER_TABLE - 1}")
+    if not isinstance(plaintext_byte, int) or not 0 <= plaintext_byte <= 255:
+        raise ValueError("plaintext_byte must be between 0 and 255")
     base = observed_line << 4
     return {y ^ plaintext_byte for y in range(base, base + ENTRIES_PER_TABLE // LINES_PER_TABLE)}
 
@@ -105,7 +108,13 @@ def recover_key_byte(observations: List[tuple]) -> dict:
 
 def simulate_first_round_attack(key_byte: int, plaintexts: List[int],
                                 noise_lines: int = 0, seed: int = 99) -> dict:
-    """Simulate attacker observations then run recovery against them."""
+    """Run the local toy-model demonstration against synthetic observations."""
+    if not isinstance(key_byte, int) or not 0 <= key_byte <= 255:
+        raise ValueError("key_byte must be between 0 and 255")
+    if noise_lines < 0:
+        raise ValueError("noise_lines must be non-negative")
+    if any(not isinstance(pt, int) or not 0 <= pt <= 255 for pt in plaintexts):
+        raise ValueError("plaintexts must contain byte values between 0 and 255")
     import random
     rng = random.Random(seed)
     obs = []
