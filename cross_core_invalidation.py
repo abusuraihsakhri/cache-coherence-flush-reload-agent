@@ -4,9 +4,8 @@ Cross-core Invalidation Agent for Cache Coherence Flush/Reload Agent.
 Simulates and detects cross-core cache invalidation failures and stale data issues.
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from dataclasses import dataclass
-import time
 import random
 
 
@@ -25,12 +24,21 @@ class CrossCoreInvalidationAgent:
     """Agent for simulating and detecting cross-core cache invalidation failures."""
 
     def __init__(self, num_cores: int = 4):
+        if num_cores < 2:
+            raise ValueError("num_cores must be at least 2")
         self.num_cores = num_cores
         self.agent_name = "CrossCoreInvalidationAgent"
         self.cores = {i: {} for i in range(num_cores)}
 
+    def _validate_core(self, core_id: int) -> None:
+        if core_id not in self.cores:
+            raise ValueError(f"core_id must be between 0 and {self.num_cores - 1}")
+
     def simulate_invalidation(self, address: int, data: int, core_id: int) -> Dict[str, Any]:
-        """Simulate a write to address on a core and track invalidation."""
+        """Simulate a write to an address and track peer invalidations."""
+        self._validate_core(core_id)
+        if address < 0:
+            raise ValueError("address must be non-negative")
         events = []
         stale_detected = []
 
@@ -97,32 +105,45 @@ class CrossCoreInvalidationAgent:
 
         return failures
 
-    def run_flush_reload_test(self, num_iterations: int = 100) -> Dict[str, Any]:
-        """Run flush/reload test to detect timing-based invalidation issues."""
+    def run_flush_reload_test(self, num_iterations: int = 100, seed: int = 2026) -> Dict[str, Any]:
+        """Run a deterministic invalidation-consistency simulation.
+
+        The method name is retained for API compatibility. No hardware timing or
+        cross-process probing is performed.
+        """
+        if num_iterations <= 0:
+            raise ValueError("num_iterations must be greater than zero")
+        rng = random.Random(seed)
         results = {"flush_reload_hits": 0, "misses": 0, "timing_anomalies": []}
 
-        for _ in range(num_iterations):
-            addr = random.randint(0x1000, 0xFFFF)
-            target_core = random.randint(0, self.num_cores - 1)
-            self.simulate_invalidation(addr, random.randint(0, 0xFFFFFFFF), target_core)
+        for iteration in range(num_iterations):
+            address = 0x1000 + iteration * 64
+            writer = rng.randrange(self.num_cores)
+            observer = (writer + 1) % self.num_cores
+            old_value = rng.randrange(0x100000000)
+            new_value = old_value ^ 0xFFFFFFFF
 
-            for c in range(self.num_cores):
-                if c != target_core and addr in self.cores[c]:
-                    start = time.perf_counter_ns()
-                    hit = self.cores[c].get(addr, {}).get("valid", False)
-                    elapsed_ns = time.perf_counter_ns() - start
-                    if hit:
-                        results["flush_reload_hits"] += 1
-                        if elapsed_ns < 100:
-                            results["timing_anomalies"].append({
-                                "core": c, "time_ns": elapsed_ns,
-                                "note": "Suspiciously fast hit after invalidation",
-                            })
-                    else:
-                        results["misses"] += 1
+            self.cores[observer][address] = {
+                "data": old_value,
+                "valid": True,
+                "dirty": False,
+                "owner_core": observer,
+                "state": "Shared",
+            }
+            self.simulate_invalidation(address, new_value, writer)
 
-        results["hit_rate"] = (results["flush_reload_hits"] /
-                               max(1, results["flush_reload_hits"] + results["misses"]))
+            still_valid = self.cores[observer][address]["valid"]
+            if still_valid:
+                results["flush_reload_hits"] += 1
+                results["timing_anomalies"].append({
+                    "core": observer,
+                    "address": hex(address),
+                    "note": "Peer line remained valid after modeled invalidation",
+                })
+            else:
+                results["misses"] += 1
+
+        results["hit_rate"] = results["flush_reload_hits"] / num_iterations
         return results
 
     def evaluate(self) -> Dict[str, Any]:
