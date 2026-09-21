@@ -38,8 +38,15 @@ def synthesize_probe_rounds(secret_bits, rounds_per_bit=8,
 
 
 def auto_threshold(timings: list) -> float:
-    """Largest-gap threshold: sort timings, pick the widest gap as the hit/miss seam."""
-    ordered = sorted(timings)
+    """Largest-gap threshold for a finite, non-negative timing series."""
+    if not timings:
+        raise ValueError("timings cannot be empty")
+    values = [float(value) for value in timings]
+    if any(not math.isfinite(value) or value < 0 for value in values):
+        raise ValueError("timings must contain finite, non-negative values")
+    ordered = sorted(values)
+    if len(ordered) == 1:
+        return ordered[0]
     gaps = [(ordered[i + 1] - ordered[i], (ordered[i] + ordered[i + 1]) / 2.0)
             for i in range(len(ordered) - 1)]
     _, threshold = max(gaps)
@@ -69,6 +76,8 @@ def classify_timings(timings: list, threshold: float = None) -> dict:
 
 def extract_bits(flags: list, rounds_per_bit: int) -> list:
     """Majority-vote one bit per window of probe rounds."""
+    if rounds_per_bit <= 0:
+        raise ValueError("rounds_per_bit must be greater than zero")
     bits = []
     for i in range(0, len(flags), rounds_per_bit):
         window = flags[i:i + rounds_per_bit]
@@ -87,11 +96,17 @@ def bits_to_text(bits: list) -> str:
 
 
 def detect_periodicity(flags: list, max_lag: int = 32) -> dict:
-    """Autocorrelation of the binary access series to expose victim cadence."""
+    """Autocorrelation heuristic for repeated binary timing patterns."""
     series = [1.0 if f else 0.0 for f in flags]
     n = len(series)
-    m = mean(series) or 1e-9
-    var = sum((x - m) ** 2 for x in series) or 1e-9
+    if n < 2 or max_lag <= 1:
+        return {"best_lag_rounds": 0, "autocorrelation": 0.0,
+                "periodic_victim_detected": False}
+    m = mean(series)
+    var = sum((x - m) ** 2 for x in series)
+    if var <= 1e-12:
+        return {"best_lag_rounds": 0, "autocorrelation": 0.0,
+                "periodic_victim_detected": False}
     best_lag, best_r = 0, 0.0
     for lag in range(1, min(max_lag, n - 1)):
         num = sum((series[i] - m) * (series[i + lag] - m) for i in range(n - lag))
