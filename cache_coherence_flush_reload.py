@@ -539,7 +539,7 @@ class CacheCoherenceFlushReloadAgent:
                 "Strong timing separation and a skewed table-access distribution were observed."
             )
             mitigations.append(
-                "Prefer hardware cryptographic instructions or constant-time implementations."
+                "Prefer AES-NI/ARM cryptographic instructions or constant-time implementations."
             )
             mitigations.append(
                 "Reduce cross-domain cache sharing where the threat model requires isolation."
