@@ -169,7 +169,7 @@ class TestSecurityCoordinatorAndAuditor(unittest.TestCase):
 
         # Text Formatting
         txt = format_security_dossier(dossier)
-        self.assertIn("CACHE COHERENCE & FLUSH+RELOAD SECURITY AUDIT", txt)
+        self.assertIn("CACHE TIMING & COHERENCE ANALYSIS", txt)
         self.assertIn("AUDIT-FMT-01", txt)
 
 

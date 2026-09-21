@@ -1,0 +1,9 @@
+address,reload_access_cycles,classification,anomaly_detected
+0x1000,72,HIT,false
+0x1040,78,HIT,false
+0x1080,81,HIT,false
+0x10c0,75,HIT,false
+0x1100,276,MISS,false
+0x1140,289,MISS,false
+0x1180,301,MISS,false
+0x11c0,284,MISS,false
